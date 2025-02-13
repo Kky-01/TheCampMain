@@ -1,0 +1,192 @@
+GOOGLE_API_KEY = "AIzaSyAFtCtB_ZfuRKTF8NiNP5lz-5C3WNVuGUk"
+NAVER_CLIENT_ID = 'sVLg7QDsZXmBjyWgunV5'
+NAVER_CLIENT_SECRET = '9_KNpe6xDN'
+
+
+import re
+import urllib.parse
+import requests
+import datetime
+from flask import Flask, render_template, request, jsonify
+import google.generativeai as genai
+
+# ====== 설정 ======
+GOOGLE_API_KEY = "AIzaSyAFtCtB_ZfuRKTF8NiNP5lz-5C3WNVuGUk"
+NAVER_CLIENT_ID = 'sVLg7QDsZXmBjyWgunV5'
+NAVER_CLIENT_SECRET = '9_KNpe6xDN'
+
+genai.configure(api_key=GOOGLE_API_KEY)
+
+app = Flask(__name__)
+
+def clean_html(text):
+    return re.sub('<.*?>', '', text)
+
+def analyze_user_intent(user_input):
+    """사용자 입력의 의도를 분석"""
+    model = genai.GenerativeModel("gemini-pro")
+    prompt = f"""
+    사용자가 입력한 내용: '{user_input}'
+    
+    요청을 분석해 주세요:
+    의도 (추천/검색/기타):
+    카테고리 (제품 종류):
+    가격대 (최소 및 최대):
+    """
+    try:
+        response = model.generate_content(prompt)
+        return eval(response.text.strip())
+    except Exception as e:
+        print(f"의도 분석 오류: {e}")
+        return {
+            "intent": "검색",
+            "category": "",
+            "price_range": None,
+            "search_keywords": [user_input],
+            "context": ""
+        }
+
+def extract_price_range(text):
+    """가격대 추출 (다양한 형식 지원)"""
+    try:
+        match = re.search(r'(\d+)만원대', text)
+        if match:
+            base = int(match.group(1)) * 10000
+            return {"min": base, "max": base + 99999}
+            
+        match = re.search(r'(\d+)만원\s*(이하|미만)', text)
+        if match:
+            max_price = int(match.group(1)) * 10000
+            return {"min": 0, "max": max_price}
+            
+        match = re.search(r'(\d+)만원\s*(이상|초과)', text)
+        if match:
+            min_price = int(match.group(1)) * 10000
+            return {"min": min_price, "max": None}
+            
+        return None
+    except Exception as e:
+        print(f"가격 추출 오류: {e}")
+        return None
+
+def search_naver_shopping(query, price_range=None):
+    """네이버 쇼핑 검색"""
+    try:
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://openapi.naver.com/v1/search/shop.json?query={encoded_query}&display=30&sort=asc"
+        
+        headers = {
+            "X-Naver-Client-Id": NAVER_CLIENT_ID,
+            "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+        }
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            return []
+            
+        items = response.json().get("items", [])
+        
+        if price_range:
+            filtered_items = []
+            for item in items:
+                price = int(item["lprice"])
+                if price_range["min"] and price < price_range["min"]:
+                    continue
+                if price_range["max"] and price > price_range["max"]:
+                    continue
+                filtered_items.append(item)
+            items = filtered_items
+
+        items = sorted(items, key=lambda x: int(x["lprice"]))[:5]
+        
+        for item in items:
+            item["title"] = clean_html(item["title"])
+            
+        return items
+    except Exception as e:
+        print(f"쇼핑 검색 오류: {e}")
+        return []
+
+def generate_shopping_advice(intent_data):
+    """쇼핑 조언 생성"""
+    model = genai.GenerativeModel("gemini-pro")
+    prompt = f"""
+    쇼핑 조언을 생성해주세요:
+    카테고리: {intent_data["category"]}
+    가격대: {intent_data["price_range"]}
+    상황: {intent_data["context"]}
+    
+    추천 기준:
+    1. 예산 고려
+    2. 제품의 품질, 기능 등
+    3. 실용성 있는 제품 추천
+    """
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"조언 생성 오류: {e}")
+        return "제품을 찾아보았습니다! 😊"
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        data = request.json
+        user_message = data.get("message", "").strip()
+
+        if not user_message:
+            return jsonify({"error": "메시지가 제공되지 않았습니다."}), 400
+
+        # 사용자 의도 분석
+        intent_data = analyze_user_intent(user_message)
+        
+        # 가격대 정보 추출
+        price_range = intent_data.get("price_range")
+        if not price_range:
+            price_range = extract_price_range(user_message)
+
+        responses = []
+        
+        # 쇼핑 조언 생성
+        shopping_advice = generate_shopping_advice(intent_data)
+        responses.append({"response": shopping_advice})
+
+        # 각 키워드로 검색 실행
+        found_items = False
+        for keyword in intent_data["search_keywords"]:
+            items = search_naver_shopping(keyword, price_range)
+            if items:
+                found_items = True
+                for item in items:
+                    product_html = f"""
+                    <div class="product-card">
+                        <img src="{item['image']}" alt="{item['title']}" />
+                        <p class="product-title">{item['title']}</p>
+                        <p class="product-price">{int(item['lprice']):,}원</p>
+                        <a href="{item['link']}" target="_blank" class="product-link">
+                            제품 보기
+                        </a>
+                    </div>
+                    """
+                    responses.append({"response": product_html, "html": True})
+
+        if not found_items:
+            responses.append({
+                "response": "😅 죄송합니다. 해당 조건에 맞는 제품을 찾지 못했어요. 다른 검색어나 가격대는 어떠세요?"
+            })
+
+        return jsonify(responses), 200
+
+    except Exception as e:
+        print(f"채팅 처리 오류: {e}")
+        return jsonify([{
+            "response": "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        }]), 500
+
+@app.route("/", methods=["GET"])
+def index():
+    now = datetime.datetime.now()
+    return render_template("search.html", now=now)
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)

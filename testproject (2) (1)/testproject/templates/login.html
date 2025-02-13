@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f9f9f9;
+            margin: 0;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+
+        .input-group input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        .toggle-password {
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 50px;
+            background-color: #ff7f7f;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .login-btn:hover {
+            background-color: #ff5f5f;
+        }
+
+        .links {
+            font-size: 14px;
+            color: gray;
+            margin-top: 15px;
+        }
+
+        .success-message {
+            display: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: green;
+            margin-bottom: 15px;
+        }
+
+        .social-login {
+            margin-top: 25px;
+        }
+
+        .social-login p {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .social-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 250px;
+            height: 60px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #fff;
+            margin: 0 auto;
+        }
+
+        .social-icons {
+            display: flex;
+            gap: 30px;
+        }
+
+        .social-icons img {
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        function togglePassword() {
+            var passwordInput = document.getElementById("password");
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+            } else {
+                passwordInput.type = "password";
+            }
+        }
+
+        function showSuccessMessage() {
+            var message = document.getElementById("success-message");
+            message.style.display = "block";
+            setTimeout(function () {
+                message.style.display = "none";
+            }, 2000);
+        }
+    </script>
+</head>
+<body>
+    <div class="login-container">
+        <h1 class="logo">A F!T</h1>
+
+        <div id="success-message" class="success-message">회원가입이 성공적으로 완료되었습니다.</div>
+
+        <div class="login-box">
+            <form action="{{ url_for('login') }}" method="post">
+                <div class="input-group">
+                    <span class="icon">👤</span>
+                    <input type="text" id="username" name="username" placeholder="아이디" required>
+                </div>
+                <div class="input-group">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="password" name="password" placeholder="비밀번호" required>
+                    <span class="toggle-password" onclick="togglePassword()">👁️</span>
+                </div>
+                <button type="submit" class="login-btn">로그인</button>
+            </form>
+            <div class="links">
+                <a href="{{ url_for('signup') }}">회원가입</a>
+            </div>
+        </div>
+
+        <div class="social-login">
+            <p>SNS 간편 로그인</p>
+            <div class="social-box">
+                <div class="social-icons">
+                    <a href="{{ url_for('login') }}">
+                        <img src="{{ url_for('static', filename='naver_icon.png') }}" alt="Naver">
+                    </a>
+                    <a href="{{ url_for('login') }}">
+                        <img src="{{ url_for('static', filename='kakao_icon.png') }}" alt="Kakao">
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

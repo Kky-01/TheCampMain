@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A FIT - 아이디 찾기</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>A FIT</h1>
+        <h2>아이디 찾기</h2>
+        <form action="{{ url_for('find_id_bp.find_id') }}" method="post">
+            <input type="email" name="email" placeholder="이메일" required>
+            <button type="submit">아이디 찾기</button>
+        </form>
+        <div class="links">
+            <a href="{{ url_for('auth_bp.login') }}">로그인으로 돌아가기</a>
+        </div>
+    </div>
+</body>
+</html>
